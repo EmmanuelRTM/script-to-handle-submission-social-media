@@ -14,6 +14,12 @@ class DriveFile:
 
 
 @dataclass(frozen=True)
+class DriveFolder:
+    id: str
+    name: str
+
+
+@dataclass(frozen=True)
 class Submission:
     """One Drive folder's contents: the video plus its supporting files."""
 

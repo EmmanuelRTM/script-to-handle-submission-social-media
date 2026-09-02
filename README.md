@@ -44,6 +44,32 @@ Optional `settings.json` in the Drive folder overrides metadata:
 {"title": "...", "description": "...", "tags": ["AI"], "ppt_urls": ["https://..."]}
 ```
 
+## Web front-end + HTTP server (WebMCP)
+
+`submission_workflow/server.py` exposes the same workflow as a small FastAPI API
+and serves the WebMCP front-end from the `webmcps` repo so an AI agent (or you)
+can review a submission, set the publish time, upload, and publish posts — with
+on-screen confirmation before anything goes public.
+
+```bash
+.venv/bin/pip install -r requirements.txt          # adds fastapi + uvicorn
+set -a; . ./.env; set +a                             # DRIVE_PARENT_FOLDER_ID, WEBMCP_DIR=../webmcps, …
+.venv/bin/uvicorn submission_workflow.server:app --port 8000
+# open http://localhost:8000/submission-publisher/
+```
+
+| Endpoint | Does |
+| --- | --- |
+| `GET /api/health` | liveness; also how the page detects the backend |
+| `GET /api/submissions` | every subfolder of `DRIVE_PARENT_FOLDER_ID` (or the single `DRIVE_FOLDER_ID`) with its video, transcript text, slide links and `settings.json` |
+| `POST /api/submissions/{id}/youtube` | downloads the video and uploads it **private** with the reviewed title/description/tags and `publishAt` (RFC 3339, ≥ 15 min ahead) |
+| `POST /api/submissions/{id}/social` | posts the given X and/or LinkedIn text; 503 if that platform isn't configured, 502 with partial results on API errors |
+
+Google OAuth runs on the first API call (the browser consent flow opens on the
+machine running the server, token cached in `GOOGLE_TOKEN_FILE`). X/LinkedIn
+credentials are optional in server mode. Set `ORIGIN_TRIAL_TOKEN` to send Chrome's
+`Origin-Trial` header on HTML once you register the origin for the WebMCP trial.
+
 ## Tests
 
 Test-first development; run with:
@@ -68,6 +94,7 @@ Test-first development; run with:
 | `social/linkedin_client.py` | POST /rest/posts (versioned) |
 | `workflow.py` | Orchestration via dependency injection |
 | `cli.py` | Entry point, wires real clients |
+| `server.py` | FastAPI API + static host for the WebMCP front-end |
 
 ## Prerequisites beyond API credentials (from the official docs)
 

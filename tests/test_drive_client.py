@@ -53,3 +53,24 @@ def test_transcript_and_settings_optional():
     assert sub.transcript is None
     assert sub.settings_file is None
     assert sub.slides == ()
+
+
+def test_list_submission_folders_queries_subfolders_of_parent():
+    from unittest.mock import MagicMock
+    from submission_workflow.drive.client import DriveClient
+    service = MagicMock()
+    service.files().list().execute.return_value = {"files": [
+        {"id": "f1", "name": "A"}, {"id": "f2", "name": "B"}]}
+    folders = DriveClient(service).list_submission_folders("parent1")
+    assert [(f.id, f.name) for f in folders] == [("f1", "A"), ("f2", "B")]
+    q = service.files().list.call_args.kwargs["q"]
+    assert "'parent1' in parents" in q and "vnd.google-apps.folder" in q and "trashed=false" in q
+
+
+def test_get_folder_returns_name():
+    from unittest.mock import MagicMock
+    from submission_workflow.drive.client import DriveClient
+    service = MagicMock()
+    service.files().get().execute.return_value = {"id": "f1", "name": "Talk"}
+    f = DriveClient(service).get_folder("f1")
+    assert (f.id, f.name) == ("f1", "Talk")

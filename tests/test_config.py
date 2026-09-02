@@ -55,3 +55,24 @@ def test_missing_variable_raises_with_name():
     del env["LINKEDIN_ACCESS_TOKEN"]
     with pytest.raises(MissingConfigError, match="LINKEDIN_ACCESS_TOKEN"):
         Settings.from_env(env)
+
+
+def _server_env():
+    return {
+        "GOOGLE_CLIENT_SECRETS_FILE": "c.json", "GOOGLE_TOKEN_FILE": "t.json",
+        "DRIVE_PARENT_FOLDER_ID": "parent1",
+    }
+
+
+def test_server_mode_accepts_parent_folder_and_optional_social():
+    from submission_workflow.config import Settings
+    s = Settings.from_env(_server_env(), require_social=False)
+    assert s.drive.parent_folder_id == "parent1" and s.drive.folder_id == ""
+    assert s.x is None and s.linkedin is None
+
+
+def test_cli_mode_still_requires_folder_and_social():
+    import pytest
+    from submission_workflow.config import MissingConfigError, Settings
+    with pytest.raises(MissingConfigError, match="DRIVE_FOLDER_ID"):
+        Settings.from_env(_server_env())

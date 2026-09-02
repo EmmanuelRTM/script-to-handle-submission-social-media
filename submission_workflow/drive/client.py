@@ -6,7 +6,7 @@ from pathlib import Path
 
 from googleapiclient.http import MediaIoBaseDownload
 
-from submission_workflow.models import DriveFile, Submission
+from submission_workflow.models import DriveFile, DriveFolder, Submission
 
 SLIDE_MIME_TYPES = frozenset({
     "application/vnd.google-apps.presentation",
@@ -17,6 +17,7 @@ GOOGLE_DOC_MIME = "application/vnd.google-apps.document"
 TRANSCRIPT_SUFFIXES = (".txt", ".srt", ".vtt")
 SETTINGS_FILENAME = "settings.json"
 LIST_FIELDS = "files(id, name, mimeType, webViewLink)"
+FOLDER_MIME = "application/vnd.google-apps.folder"
 
 
 class NoVideoError(RuntimeError):
@@ -26,6 +27,20 @@ class NoVideoError(RuntimeError):
 class DriveClient:
     def __init__(self, service):
         self._service = service
+
+    def get_folder(self, folder_id: str) -> DriveFolder:
+        f = self._service.files().get(fileId=folder_id, fields="id, name").execute()
+        return DriveFolder(id=f["id"], name=f["name"])
+
+    def list_submission_folders(self, parent_id: str) -> list[DriveFolder]:
+        """Every subfolder of `parent_id` is one submission (server mode)."""
+        response = self._service.files().list(
+            q=f"'{parent_id}' in parents and mimeType='{FOLDER_MIME}' and trashed=false",
+            fields="files(id, name)",
+            orderBy="name",
+            pageSize=100,
+        ).execute()
+        return [DriveFolder(id=f["id"], name=f["name"]) for f in response.get("files", [])]
 
     def find_submission(self, folder_id: str) -> Submission:
         response = self._service.files().list(
